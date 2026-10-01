@@ -1,0 +1,49 @@
+name: Build and deploy Godot Web
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install official Godot 4.6.3 and export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot.zip" https://github.com/godotengine/godot/releases/download/4.6.3-stable/Godot_v4.6.3-stable_linux.x86_64.zip
+          mkdir -p "$RUNNER_TEMP/godot"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot/Godot_v4.6.3-stable_linux.x86_64"
+          echo "GODOT_BIN=$RUNNER_TEMP/godot/Godot_v4.6.3-stable_linux.x86_64" >> "$GITHUB_ENV"
+          python3 tools/fetch_templates.py
+      - name: Build single-threaded Web release
+        run: bash tools/export.sh Web
+      - name: Validate scene collision and character animations
+        run: |
+          "$GODOT_BIN" --headless --path . -- --smoke
+      - name: Record deployed source revision
+        run: |
+          printf '{"commit":"%s"}\n' "$GITHUB_SHA" > build/web/version.json
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
