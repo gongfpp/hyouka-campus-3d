@@ -37,4 +37,4 @@ GODOT_TEMPLATE_DIR=/path/to/4.6.3.stable bash tools/export.sh Linux
 
 ## 验证
 
-烟测与独立真实物理路线测试在 tests/。headless只验证逻辑/物理，不等同视觉验收；最终验证记录另见 TEST_REPORT.md。开发参数 --capture-tour 可从真实渲染窗口保存六景截图到 artifacts/screenshots/。
+烟测与独立真实物理路线测试在 tests/。headless只验证逻辑/物理，不等同视觉验收；最终验证记录另见 TEST_REPORT.md。开发参数 --capture-tour 可从真实渲染窗口保存六景截图到 artifacts/screenshots_final/。
