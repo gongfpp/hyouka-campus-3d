@@ -1,0 +1,10 @@
+.godot/
+build/
+*.tmp
+*.log
+*.zip
+tests/*_result.json
+artifacts/
+
+# Regenerated with verified Godot 4.6.3 defaults; not published
+*.import
