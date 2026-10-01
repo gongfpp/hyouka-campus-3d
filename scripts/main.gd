@@ -1,6 +1,7 @@
 extends Node3D
 
 const Player = preload("res://scripts/player.gd")
+const EditorialUI = preload("res://scripts/editorial_ui.gd")
 const Telemetry = preload("res://scripts/telemetry.gd")
 const CHARACTERS := {"oreki":"折木奉太郎", "chitanda":"千反田爱瑠", "satoshi":"福部里志", "mayaka":"伊原摩耶花"}
 const SCENES := {
@@ -19,7 +20,7 @@ var visited: Array = []
 var observed: Array = []
 var points: Array[Dictionary] = []
 var telemetry = Telemetry.new()
-var ui: CanvasLayer
+var ui: EditorialUI
 var header: Label
 var subheader: Label
 var status: Label
@@ -30,6 +31,8 @@ var loading: Label
 var nearest := -1
 var started := false
 var panel_open := true
+var modal_kind := "menu"
+var modal_parent := "resume"
 var save_timer := 0.0
 var scene_age := 0.0
 var font: Font
@@ -41,7 +44,9 @@ var smoke_mode := false
 var saved_position: Variant = null
 
 func _ready() -> void:
-	for entry in [["forward",KEY_W],["back",KEY_S],["left",KEY_A],["right",KEY_D],["run",KEY_SHIFT],["interact",KEY_E],["menu",KEY_ESCAPE],["journal",KEY_J],["characters",KEY_C]]:
+	if "--ui-review" in OS.get_cmdline_user_args():
+		get_window().title = "HYOUKA / Editorial UI Review"
+	for entry in [["forward",KEY_W],["back",KEY_S],["left",KEY_A],["right",KEY_D],["run",KEY_SHIFT],["interact",KEY_E],["menu",KEY_ESCAPE],["journal",KEY_J],["characters",KEY_C],["hints",KEY_H]]:
 		if not InputMap.has_action(entry[0]):
 			InputMap.add_action(entry[0])
 			var event := InputEventKey.new()
@@ -279,169 +284,151 @@ func _setup_points(id: String) -> void:
 			_point("kitchen", "餐厨一角", Vector3(-3.5,0.4,1.5), "从客厅穿过开口，可以走到餐厨区域。楼上的房间未开放，外观并不意味着每扇窗后都能进入。", "", null, 1.8)
 
 func _build_ui() -> void:
-	ui = CanvasLayer.new()
+	ui = EditorialUI.new()
 	add_child(ui)
-	var root := Control.new()
-	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var theme := Theme.new()
-	theme.default_font = font
-	theme.default_font_size = 19
-	theme.set_color("font_shadow_color","Label",Color(0,0,0,0.9))
-	theme.set_constant("shadow_offset_x","Label",1)
-	theme.set_constant("shadow_offset_y","Label",2)
-	root.theme = theme
-	ui.add_child(root)
-	var top_shade := ColorRect.new()
-	top_shade.color = Color(0.045,0.085,0.085,0.74)
-	top_shade.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	top_shade.offset_bottom = 135
-	top_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(top_shade)
-	var bottom_shade := ColorRect.new()
-	bottom_shade.color = Color(0.045,0.085,0.085,0.8)
-	bottom_shade.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	bottom_shade.offset_top = -65
-	bottom_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(bottom_shade)
-	var top := VBoxContainer.new()
-	top.position = Vector2(30,22)
-	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(top)
-	var eyebrow := Label.new()
-	eyebrow.text = "AFTER SCHOOL  /  KAMIYAMA"
-	eyebrow.add_theme_font_size_override("font_size", 14)
-	eyebrow.modulate = Color("d2e1d5")
-	top.add_child(eyebrow)
-	header = Label.new()
-	header.add_theme_font_size_override("font_size", 30)
-	top.add_child(header)
-	subheader = Label.new()
-	subheader.add_theme_font_size_override("font_size", 17)
-	top.add_child(subheader)
-	status = Label.new()
-	status.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	status.position = Vector2(-330,25)
-	status.size = Vector2(300,60)
-	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	root.add_child(status)
-	prompt = Label.new()
-	prompt.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	prompt.position = Vector2(-450,-112)
-	prompt.size = Vector2(900,45)
-	prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	prompt.add_theme_font_size_override("font_size",24)
-	root.add_child(prompt)
-	var controls := Label.new()
-	controls.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	controls.position = Vector2(30,-50)
-	controls.text = "WASD 移动  ·  Shift 奔跑  ·  鼠标 视角  ·  滚轮 距离  ·  E 观察/进入  ·  J 手记  ·  C 角色  ·  Esc 菜单"
-	controls.add_theme_font_size_override("font_size",16)
-	root.add_child(controls)
-	panel = PanelContainer.new()
-	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	panel.position = Vector2(-300,-265)
-	panel.custom_minimum_size = Vector2(600,0)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.065,0.105,0.11,0.96)
-	style.border_color = Color("9bbaa6")
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(12)
-	style.content_margin_left = 30
-	style.content_margin_right = 30
-	style.content_margin_top = 24
-	style.content_margin_bottom = 24
-	panel.add_theme_stylebox_override("panel",style)
-	root.add_child(panel)
-	panel_box = VBoxContainer.new()
-	panel_box.add_theme_constant_override("separation",12)
-	panel.add_child(panel_box)
+	ui.setup(font, _back)
+	header = ui.header
+	subheader = ui.subheader
+	status = ui.status
+	prompt = ui.prompt
+	panel = ui.panel
+	panel_box = ui.panel_box
 
-func _clear_panel(title: String, description: String) -> void:
-	panel.show()
+func _clear_panel(title: String, description: String, kind := "page", parent := "resume") -> void:
 	panel_open = true
+	modal_kind = kind
+	modal_parent = parent
 	player.enabled = false
 	player.velocity = Vector3.ZERO
+	# Freeze physics AND animation, while the UI and character-card viewports stay live.
+	player._update_camera()
+	player.process_mode = Node.PROCESS_MODE_DISABLED
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	for node in panel_box.get_children():
-		panel_box.remove_child(node)
-		node.queue_free()
-	var label := Label.new()
-	label.text = title
-	label.add_theme_font_size_override("font_size",27)
-	panel_box.add_child(label)
-	if not description.is_empty():
-		var body := Label.new()
-		body.text = description
-		body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		body.custom_minimum_size.x = 530
-		body.add_theme_font_size_override("font_size",17)
-		panel_box.add_child(body)
+	ui.present(title,description,kind)
+	ui.close_button.visible = kind != "menu" or started
 
-func _button(text: String, callback: Callable) -> Button:
-	var button := Button.new()
-	button.text = text
-	button.custom_minimum_size.y = 40
-	button.pressed.connect(callback)
-	panel_box.add_child(button)
-	return button
+func _button(text: String, callback: Callable, primary := false) -> Button:
+	return ui.add_button(text,callback,primary)
+
+func _back() -> void:
+	if not panel_open:
+		_show_start()
+	elif modal_kind == "menu":
+		if started: _resume()
+	elif modal_parent == "menu":
+		_show_start()
+	else:
+		_resume()
+
+func _submenu_parent() -> String:
+	return "menu" if panel_open and modal_kind == "menu" else "resume"
 
 func _show_start() -> void:
-	_clear_panel("冰菓：放课后的神山", "校园自由探索 · 非商业同人原型\n六处场景以动画画面为视觉依据；完整连接、楼梯与隐蔽区域为可玩性推定，并非全校园一比一复刻。")
-	_button("继续探索" if visited.size() > 1 or observed.size() > 0 else "走进放课后的校园", _resume)
-	_button("选择角色 · " + CHARACTERS[character_id], _show_characters)
-	_button("地点与观察手记", _show_journal)
-	_button("重新开始", _confirm_reset)
-	_button("关于 / 操作 / 隐私", _show_about)
+	_clear_panel("冰菓", "放课后的神山\nAFTER SCHOOL IN KAMIYAMA", "menu")
+	panel_box.add_child(ui.separator())
+	panel_box.add_child(ui.paragraph("把脚步放慢一些。\n在熟悉的校园里，留意微小的不同。",16))
+	_button("继续探索  →" if started or visited.size() > 1 or observed.size() > 0 else "走进放课后的校园  →", _resume, true)
+	_button("同行者    /    " + CHARACTERS[character_id], _show_characters)
+	_button("观察手记    /    %02d 处记录" % observed.size(), _show_journal)
+	var utilities := HBoxContainer.new()
+	utilities.add_theme_constant_override("separation",8)
+	panel_box.add_child(utilities)
+	var about: Button = ui.add_button("关于与操作",_show_about,false,utilities)
+	about.theme_type_variation = "QuietButton"
+	about.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var reset: Button = ui.add_button("重新开始",_confirm_reset,false,utilities)
+	reset.theme_type_variation = "QuietButton"
+	ui.add_note("非官方同人探索原型\n六处场景 · 四位同行者 · 进度仅保存在此设备")
+	ui.focus_first()
 
 func _resume() -> void:
 	started = true
 	panel_open = false
-	panel.hide()
+	modal_kind = ""
+	ui.dismiss()
+	player.process_mode = Node.PROCESS_MODE_INHERIT
 	player.enabled = true
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_save()
 
 func _show_characters() -> void:
-	_clear_panel("选择同行者", "可随时切换，保留当前位置和观察手记。")
-	for id in CHARACTERS:
-		var available := ResourceLoader.exists("res://assets/characters/%s.glb" % id)
-		_button(CHARACTERS[id] + ("  ✓" if id == character_id else "") + ("" if available else " · 角色资产制作中"), func():
-			character_id = id
-			player.set_character(id)
-			telemetry.record("character_select", {"character":id})
-			_update_status()
-			_resume())
-	_button("返回", _show_start)
+	var parent := _submenu_parent()
+	if panel_open and modal_kind == "characters":
+		_back()
+		return
+	_clear_panel("选择同行者", "同一段放课后，换一个同行的身影。切换保留当前位置与观察手记。", "characters", parent)
+	ui.add_character_cards(CHARACTERS,character_id,func(id: String):
+		character_id = id
+		player.set_character(id)
+		telemetry.record("character_select", {"character":id})
+		_update_status()
+		_resume())
+	ui.add_note("头像直接渲染当前游戏角色模型。Tab / 方向键选择，Enter 确认，Esc 返回。")
+	ui.focus_first()
 
 func _show_journal() -> void:
-	var text := "已到访 %d / 6　·　已观察 %d 处\n\n" % [visited.size(),observed.size()]
+	var parent := _submenu_parent()
+	if panel_open and modal_kind == "journal":
+		_back()
+		return
+	_clear_panel("观察手记", "到访 %02d / 06    ·    观察 %02d 处" % [visited.size(),observed.size()], "journal", parent)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation",24)
+	grid.add_theme_constant_override("v_separation",8)
+	panel_box.add_child(grid)
+	var index := 0
 	for id in SCENES:
-		text += ("● " if visited.has(id) else "○ ") + SCENES[id].title + "\n"
-	text += "\n校园路线：操场北侧入口 → 走廊 → 普通教室 / 地学准备室\n校外路线：操场西南「放课后出校」→ 两处住宅\n连接处靠近标记后按 E。楼梯上层可到平台。"
-	_clear_panel("观察手记", text)
-	_button("返回探索", _resume)
-	_button("菜单", _show_start)
+		index += 1
+		var row := VBoxContainer.new()
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(row)
+		row.add_child(ui.label("%02d    %s" % [index,"已到访" if visited.has(id) else "尚未到访"],11,EditorialUI.MUTED))
+		row.add_child(ui.label(SCENES[id].title,17,EditorialUI.INK if visited.has(id) else EditorialUI.MUTED))
+		row.add_child(ui.separator())
+	panel_box.add_child(ui.label("校园里的路线",18,EditorialUI.INK))
+	panel_box.add_child(ui.paragraph("操场北侧入口 → 走廊 → 普通教室 / 地学准备室\n操场西南「放课后出校」→ 两处住宅\n靠近地点标记后按 E；楼梯可登至平台。",14))
+	if observed.is_empty():
+		panel_box.add_child(ui.paragraph("手记还是空白的。靠近场景里的观察点，按 E 留下第一条记录。",14))
+	else:
+		panel_box.add_child(ui.label("已收录的片段",18,EditorialUI.INK))
+		# The existing save contains observation IDs. Display their existing titles without new state.
+		var names := {"yard_track":"操场边线","yard_facade":"校舍窗格","notice":"走廊公告","landing":"楼梯平台","blackboard":"黑板与讲台","window":"窗边座位","anthology":"桌上的文集","specimens":"标本与书柜","tatami":"榻榻米与茶席","garden":"缘侧的庭院","living":"客厅茶几","kitchen":"餐厨一角"}
+		var titles: PackedStringArray = []
+		for id in observed:
+			if names.has(id): titles.append(names[id])
+		panel_box.add_child(ui.paragraph("  /  ".join(titles),14))
+	_button("返回菜单" if parent == "menu" else "合上手记，继续探索  →",_back,true)
+	ui.focus_first()
 
 func _show_about() -> void:
-	_clear_panel("慢慢走，仔细看", "WASD 移动，Shift 奔跑，鼠标转视角，滚轮调整镜头。E 观察或进入，J 手记，C 切换角色，Esc 释放鼠标。\n\n校园和住宅为独立场景。未开放区域不代表可探索；尚未制作推理主线。\n\n自动保存在此设备。埋点仅保留最近 200 条角色、场景、互动和加载错误事件，不记录身份或坐标，不上传任何服务器。\n\n本项目为非官方同人研究原型。原作及角色权利归各权利方所有。")
-	_button("返回", _show_start)
+	_clear_panel("慢慢走，仔细看", "关于这个放课后", "about", "menu")
+	panel_box.add_child(ui.label("操作",20,EditorialUI.INK))
+	panel_box.add_child(ui.paragraph("WASD 移动 · Shift 奔跑 · 鼠标转视角 · 滚轮调整镜头\nE 观察 / 进入 · J 手记 · C 同行者 · Esc 菜单 / 返回\nH 展开或收起操作提示 · Tab / 方向键选择 · Enter 确认",15))
+	panel_box.add_child(ui.separator())
+	panel_box.add_child(ui.paragraph("校园和住宅为独立场景。六处场景以动画画面为视觉依据；完整连接、楼梯与隐蔽区域为可玩性推定，并非全校园一比一复刻。未开放区域不可探索，尚未制作推理主线。",15))
+	panel_box.add_child(ui.paragraph("自动保存在此设备。埋点仅保留最近 200 条角色、场景、互动和加载错误事件，不记录身份或坐标，不上传任何服务器。",15))
+	panel_box.add_child(ui.paragraph("本项目为非官方同人研究原型。原作及角色权利归各权利方所有。",13))
+	_button("返回菜单", _show_start, true)
 	_button("清空本地事件记录", func(): telemetry.clear(); _show_start())
+	ui.focus_first()
 
 func _confirm_reset() -> void:
-	_clear_panel("重新开始？", "将清空本设备的探索进度。角色选择保留。")
+	_clear_panel("重新开始？", "将清空本设备的探索进度。角色选择保留。", "reset", "menu")
+	_button("保留进度，返回菜单",_show_start,true)
 	_button("确认重新开始", func():
 		visited.clear()
 		observed.clear()
 		_load_scene("yard")
 		_resume())
-	_button("取消", _show_start)
+	ui.focus_first()
 
 func _travel() -> void:
-	_clear_panel("放课后的去处", "选择校外目的地。住宅入口附近可返回校园。")
-	_button("拜访千反田家", func(): _load_scene("chitanda"); _resume())
-	_button("拜访折木家", func(): _load_scene("oreki"); _resume())
+	_clear_panel("放课后的去处", "选择校外目的地。住宅入口附近可返回校园。", "travel")
+	_button("01    拜访千反田家", func(): _load_scene("chitanda"); _resume(),true)
+	_button("02    拜访折木家", func(): _load_scene("oreki"); _resume())
 	_button("留在校园", _resume)
+	ui.focus_first()
 
 func _interact() -> void:
 	if nearest < 0 or nearest >= points.size():
@@ -457,20 +444,27 @@ func _interact() -> void:
 		if not observed.has(point.id):
 			observed.append(point.id)
 		_update_status()
-		_clear_panel(point.title, point.text + "\n\n已收录到观察手记。")
-		_button("合上手记", _resume)
+		_clear_panel(point.title, "观察记录  /  " + SCENES[scene_id].title, "observation")
+		panel_box.add_child(ui.paragraph(point.text,19))
+		ui.add_note("已收录到观察手记。按 J 可再次查看地点与记录。")
+		_button("合上手记，继续探索  →", _resume, true)
+		ui.focus_first()
 		_save()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.echo: return
+	if event is InputEventKey and event.pressed and event.keycode == KEY_F12 and "--ui-review" in OS.get_cmdline_user_args():
+		_capture_ui_frame.call_deferred()
+		return
 	if event.is_action_pressed("menu"):
-		if panel_open and started:
-			_resume()
-		else:
-			_show_start()
-	elif event.is_action_pressed("journal"):
+		_back()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("journal") and (not panel_open or modal_kind in ["menu","journal"]):
 		_show_journal()
-	elif event.is_action_pressed("characters"):
+	elif event.is_action_pressed("characters") and (not panel_open or modal_kind in ["menu","characters"]):
 		_show_characters()
+	elif event.is_action_pressed("hints") and not panel_open:
+		ui.toggle_hints()
 	elif event.is_action_pressed("interact") and not panel_open:
 		_interact()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and not panel_open:
@@ -479,7 +473,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if not player:
 		return
-	scene_age += delta
+	if not panel_open: scene_age += delta
 	nearest = -1
 	var best := INF
 	for i in points.size():
@@ -489,7 +483,7 @@ func _process(delta: float) -> void:
 		if distance < points[i].radius and distance < best:
 			best = distance
 			nearest = i
-	prompt.text = "[ E ]  " + points[nearest].title if nearest >= 0 and not panel_open else ""
+	ui.set_prompt("E    " + points[nearest].title if nearest >= 0 and not panel_open else "")
 	if player.global_position.y < -4 or absf(player.global_position.x) > 150 or absf(player.global_position.z) > 180:
 		player.global_position = last_safe
 		player.velocity = Vector3.ZERO
@@ -502,7 +496,8 @@ func _process(delta: float) -> void:
 		_save()
 
 func _update_status() -> void:
-	status.text = CHARACTERS[character_id] + "\n地点 %d / 6  ·  观察 %d" % [visited.size(),observed.size()]
+	status.text = CHARACTERS[character_id] + "\n到访 %02d / 06   ·   手记 %02d" % [visited.size(),observed.size()]
+	ui._layout_hud()
 
 func _save() -> void:
 	if smoke_mode:
@@ -540,7 +535,7 @@ func _load_save() -> void:
 
 func _run_smoke() -> void:
 	var report := {"engine":Engine.get_version_info().string,"scenes":[],"characters":[],"passed":true}
-	panel.hide()
+	_resume()
 	for id in SCENES:
 		_load_scene(id)
 		for frame in 90:
@@ -569,8 +564,7 @@ func _run_smoke() -> void:
 	get_tree().quit(0 if report.passed else 1)
 
 func _capture_tour() -> void:
-	panel.hide()
-	panel_open = false
+	_resume()
 	DirAccess.make_dir_recursive_absolute("res://artifacts/screenshots_final")
 	for id in SCENES:
 		_load_scene(id)
@@ -598,3 +592,9 @@ func _capture_tour() -> void:
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("res://artifacts/screenshots_final/characters.png")
 	_show_start()
+
+func _capture_ui_frame() -> void:
+	await RenderingServer.frame_post_draw
+	var path := "res://artifacts/ui-redesign/%s-%s.png" % [modal_kind if panel_open else "hud",str(Time.get_unix_time_from_system()).replace(".","-")]
+	get_viewport().get_texture().get_image().save_png(path)
+	print("UI_SCREENSHOT ",path)

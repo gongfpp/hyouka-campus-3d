@@ -17,7 +17,7 @@ func walk_to(p):
  if Vector2(p.x-g.player.position.x,p.z-g.player.position.z).length() > .25 or not g.player.is_on_floor(): failures += 1
  print("QA_WALK to=",p," actual=",g.player.position," error=",Vector2(p.x-g.player.position.x,p.z-g.player.position.z).length()," floor=",g.player.is_on_floor())
 func run():
- g=load("res://main.tscn").instantiate(); root.add_child(g); g.smoke_mode=true
+ g=load("res://main.tscn").instantiate(); root.add_child(g); g.smoke_mode=true; g._resume()
  await frames(2)
  for id in ["corridor","chitanda","oreki","class","club","yard"]:
   g._load_scene(id); g.player.enabled=true; await frames(30)

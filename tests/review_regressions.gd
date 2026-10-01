@@ -9,6 +9,7 @@ func run():
  game=load("res://main.tscn").instantiate()
  root.add_child(game)
  game.smoke_mode=true
+ game._resume()
  await frames(2)
  for id in game.SCENES:
   game._load_scene(id)

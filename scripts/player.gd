@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+const CharacterPalette = preload("res://scripts/character_palette.gd")
+
 var yaw := 0.0
 var pitch := -0.16
 var distance := 3.6
@@ -44,6 +46,7 @@ func set_character(id: String) -> bool:
 	var ready := ResourceLoader.exists(path)
 	if ready:
 		var model: Node3D = load(path).instantiate()
+		CharacterPalette.apply(model)
 		model.rotation.y = 0
 		visual.add_child(model)
 		_find_animators(model)
