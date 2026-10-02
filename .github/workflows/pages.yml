@@ -29,9 +29,16 @@ jobs:
         run: |
           "$GODOT_BIN" --headless --path . -- --smoke
           "$GODOT_BIN" --headless --path . --script res://tests/review_chitanda_import.gd
-      - name: Record deployed source revision
+      - name: Record deployed source revision and asset hashes
         run: |
           printf '{"commit":"%s"}\n' "$GITHUB_SHA" > build/web/version.json
+          (
+            cd build/web
+            find . -maxdepth 1 -type f ! -name SHA256SUMS ! -name .nojekyll -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+          echo "PAGES_ASSET_SHA256_BEGIN"
+          cat build/web/SHA256SUMS
+          echo "PAGES_ASSET_SHA256_END"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
