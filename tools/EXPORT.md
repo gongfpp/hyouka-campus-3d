@@ -30,3 +30,20 @@ Sources:
 - https://github.com/godotengine/godot/releases/tag/4.6.3-stable
 - https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_web.html
 - https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages
+
+## Chitanda's non-default import
+
+`assets/characters/chitanda.glb.import` is deliberately tracked. It binds
+`res://scripts/chitanda_hair_import.gd` and embeds the authored texture PNGs
+losslessly in the imported scene (`gltf/embedded_image_handling=3`). The other
+GLB import descriptors keep their reproducible Godot defaults and stay ignored.
+The post-import script restores only the two named hair materials' explicit
+`KHR_materials_specular.specularFactor=0`; Godot 4.6.3 otherwise uses 0.5.
+It does not alter lighting, roughness, geometry or the legacy body palette.
+
+CI runs `tests/review_chitanda_import.gd` after a clean import to assert the
+adapter actually ran, all 27 matching surfaces have zero specular, the 17-bone
+skeleton and three authored animation durations are present, embedded face/iris
+textures are available without vertex-color tinting, and the existing palette
+color-space shader still applies to the body. Never validate this only against
+a pre-existing `.godot/` cache.

@@ -12,3 +12,8 @@ XDG_DATA_HOME=/tmp/hyouka-test-data XDG_CACHE_HOME=/tmp/hyouka-test-cache godot 
 - Teleport checks place the player near interaction markers; they do not prove walking reachability of every marker
 - Stair/house route checks follow selected paths; they are not exhaustive collision coverage
 - No camera visual assertion, browser pointer-lock check, animation visual assertion, or malformed-save test is claimed by these scripts
+
+- `review_chitanda_import.gd`: checks the tracked non-default import descriptor,
+  post-import metadata, 27 zero-specular hair surfaces, embedded untinted face
+  and iris textures, 17 bones, idle/walk/run durations, and the existing body
+  palette color-space adapter. CI runs it on a clean checkout.

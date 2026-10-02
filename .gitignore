@@ -6,5 +6,7 @@ build/
 tests/*_result.json
 artifacts/
 
-# Regenerated with verified Godot 4.6.3 defaults; not published
+# Default imports are regenerated with Godot 4.6.3.
+# Chitanda requires its authored hair material post-import adapter.
 *.import
+!assets/characters/chitanda.glb.import

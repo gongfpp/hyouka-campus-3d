@@ -28,6 +28,7 @@ jobs:
       - name: Validate scene collision and character animations
         run: |
           "$GODOT_BIN" --headless --path . -- --smoke
+          "$GODOT_BIN" --headless --path . --script res://tests/review_chitanda_import.gd
       - name: Record deployed source revision
         run: |
           printf '{"commit":"%s"}\n' "$GITHUB_SHA" > build/web/version.json
