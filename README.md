@@ -2,6 +2,10 @@
 
 Godot 4.6.3 / Compatibility 非商业同人校园探索原型。独立工程，不依赖 Iscream。
 
+<p align="center">
+  <img src="docs/screenshots/home.png" width="760" alt="《冰菓：放课后的神山》原型画面：操场与教学楼，左侧为地点手册、同行者与观察手记面板" />
+</p>
+
 ## 游玩
 
 - WASD 移动，Shift 奔跑；鼠标转视角，滚轮调整第三人称距离
